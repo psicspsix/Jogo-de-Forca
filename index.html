@@ -5,13 +5,73 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jogo de Forca</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f0f0f0; }
-        #telaInicial, #telaJogo { display: none; }
-        #telaInicial button, #telaJogo button { font-size: 18px; padding: 10px 20px; margin: 10px; cursor: pointer; }
-        #forca { font-family: monospace; white-space: pre; font-size: 24px; }
-        #palavra { font-size: 24px; margin: 20px 0; }
-        #letraInput { font-size: 18px; padding: 5px; }
-        #mensagem { font-size: 18px; color: red; }
+        body {
+            background-image: url('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=1470&auto=format&fit=crop'); /* Imagem de fundo com forca */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: #000000; /* Tema noir: fundo preto */
+            color: #ffffff; /* Tema noir: texto branco */
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+        #telaInicial, #telaJogo {
+            display: none;
+            text-align: center;
+        }
+        #telaInicial {
+            background: rgba(0, 0, 0, 0.7); /* Fundo semi-transparente */
+            padding: 20px;
+            border-radius: 10px;
+        }
+        h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #333333;
+            color: #ffffff;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #555555;
+        }
+        input {
+            font-size: 1.2em;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            background: #333333;
+            color: #ffffff;
+            border: 1px solid #555555;
+        }
+        #forca {
+            font-family: monospace;
+            white-space: pre;
+            font-size: 24px;
+            margin: 20px 0;
+        }
+        #palavra {
+            font-size: 24px;
+            margin: 20px 0;
+        }
+        #mensagem {
+            font-size: 18px;
+            color: #ff5555;
+        }
+        #fornecedorView, #adivinhadorView {
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -41,7 +101,7 @@
         <div id="adivinhadorView" style="display: none;">
             <h2>Adivinhe a palavra</h2>
             <p id="palavra"></p>
-            <input type="text" id="letraInput" maxlength="1">
+            <input type="text" id="letraInput" maxlength="1" placeholder="Digite uma letra">
             <button onclick="adivinharLetra()">Enviar</button>
         </div>
         <pre id="forca"></pre>
@@ -50,7 +110,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDYju4ux-XrvEXaP2aSXbY2eJd_Qj4AKow",
@@ -69,6 +129,7 @@
         let papel = '';
         let idJogo = '';
         let jogo = { palavra: '', letrasAdivinhadas: [], erros: 0, estado: 'em andamento' };
+        let unsubscribe = null;
 
         const forcaEstagios = [
             ` +---+
@@ -125,7 +186,16 @@
         function mostrarTela(tela) {
             document.getElementById('telaInicial').style.display = 'none';
             document.getElementById('telaJogo').style.display = 'none';
-            if (tela === 'inicial') document.getElementById('telaInicial').style.display = 'block';
+            if (tela === 'inicial') {
+                document.getElementById('telaInicial').style.display = 'block';
+                document.getElementById('opcoesMultiplayer').style.display = 'none';
+                document.getElementById('criarJogo').style.display = 'none';
+                document.getElementById('entrarJogo').style.display = 'none';
+                if (unsubscribe) {
+                    unsubscribe();
+                    unsubscribe = null;
+                }
+            }
             if (tela === 'jogo') document.getElementById('telaJogo').style.display = 'block';
         }
 
@@ -135,51 +205,71 @@
 
         function mostrarCriarJogo() {
             document.getElementById('criarJogo').style.display = 'block';
+            document.getElementById('entrarJogo').style.display = 'none';
         }
 
         function mostrarEntrarJogo() {
             document.getElementById('entrarJogo').style.display = 'block';
+            document.getElementById('criarJogo').style.display = 'none';
         }
 
         async function iniciarJogoSolo() {
             modo = 'solo';
             papel = 'adivinhador';
-            const numeroAleatorio = Math.floor(Math.random() * 5000);
-            const docRef = doc(db, 'palavras', numeroAleatorio.toString());
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                jogo.palavra = docSnap.data().palavra.toLowerCase();
-                jogo.letrasAdivinhadas = [];
-                jogo.erros = 0;
-                jogo.estado = 'em andamento';
+            try {
+                const palavrasCol = collection(db, 'palavras');
+                const snapshot = await getDocs(palavrasCol);
+                const palavras = snapshot.docs.map(doc => doc.data().palavra);
+                if (palavras.length === 0) {
+                    alert('Nenhuma palavra encontrada no banco de dados.');
+                    return;
+                }
+                const palavraAleatoria = palavras[Math.floor(Math.random() * palavras.length)];
+                jogo = {
+                    palavra: palavraAleatoria.toLowerCase(),
+                    letrasAdivinhadas: [],
+                    erros: 0,
+                    estado: 'em andamento'
+                };
                 mostrarTela('jogo');
                 exibirJogo();
-            } else {
-                alert('Erro ao selecionar palavra.');
+            } catch (error) {
+                console.error('Erro ao iniciar jogo solo:', error);
+                alert('Erro ao carregar palavras do banco de dados.');
             }
         }
 
         async function criarJogo() {
             const palavra = document.getElementById('palavraInput').value.trim().toLowerCase();
-            if (!palavra) {
-                alert('Digite uma palavra válida.');
+            if (!palavra.match(/^[a-z]+$/)) {
+                alert('Digite uma palavra válida (apenas letras de a-z).');
                 return;
             }
             modo = 'multiplayer';
             papel = 'fornecedor';
             idJogo = generateUniqueId();
-            jogo = { palavra: palavra, letrasAdivinhadas: [], erros: 0, estado: 'em andamento' };
-            const docRef = doc(db, 'jogos', idJogo);
-            await setDoc(docRef, jogo);
-            alert(`Jogo criado! Compartilhe este ID com seu amigo: ${idJogo}`);
-            mostrarTela('jogo');
-            exibirJogo();
-            onSnapshot(docRef, (doc) => {
-                if (doc.exists()) {
-                    jogo = doc.data();
-                    exibirJogo();
-                }
-            });
+            jogo = {
+                palavra: palavra,
+                letrasAdivinhadas: [],
+                erros: 0,
+                estado: 'em andamento'
+            };
+            try {
+                const docRef = doc(db, 'jogos', idJogo);
+                await setDoc(docRef, jogo);
+                alert(`Jogo criado! Compartilhe este ID com seu amigo: ${idJogo}`);
+                mostrarTela('jogo');
+                exibirJogo();
+                unsubscribe = onSnapshot(docRef, (doc) => {
+                    if (doc.exists()) {
+                        jogo = doc.data();
+                        exibirJogo();
+                    }
+                });
+            } catch (error) {
+                console.error('Erro ao criar jogo:', error);
+                alert('Erro ao criar o jogo.');
+            }
         }
 
         function generateUniqueId() {
@@ -195,20 +285,25 @@
             modo = 'multiplayer';
             papel = 'adivinhador';
             idJogo = id;
-            const docRef = doc(db, 'jogos', idJogo);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                jogo = docSnap.data();
-                mostrarTela('jogo');
-                exibirJogo();
-                onSnapshot(docRef, (doc) => {
-                    if (doc.exists()) {
-                        jogo = doc.data();
-                        exibirJogo();
-                    }
-                });
-            } else {
-                alert('Jogo não encontrado.');
+            try {
+                const docRef = doc(db, 'jogos', idJogo);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    jogo = docSnap.data();
+                    mostrarTela('jogo');
+                    exibirJogo();
+                    unsubscribe = onSnapshot(docRef, (doc) => {
+                        if (doc.exists()) {
+                            jogo = doc.data();
+                            exibirJogo();
+                        }
+                    });
+                } else {
+                    alert('Jogo não encontrado.');
+                }
+            } catch (error) {
+                console.error('Erro ao entrar no jogo:', error);
+                alert('Erro ao entrar no jogo.');
             }
         }
 
@@ -228,13 +323,13 @@
             if (jogo.estado === 'vencido') {
                 document.getElementById('mensagem').textContent = 'Você venceu!';
             } else if (jogo.estado === 'perdido') {
-                document.getElementById('mensagem').textContent = 'Você perdeu! A palavra era: ' + jogo.palavra;
+                document.getElementById('mensagem').textContent = `Você perdeu! A palavra era: ${jogo.palavra}`;
             } else {
                 document.getElementById('mensagem').textContent = '';
             }
         }
 
-        function adivinharLetra() {
+        async function adivinharLetra() {
             if (papel !== 'adivinhador' || jogo.estado !== 'em andamento') return;
             const letra = document.getElementById('letraInput').value.trim().toLowerCase();
             if (!letra || letra.length !== 1 || !/[a-z]/.test(letra)) {
@@ -258,13 +353,19 @@
                 }
             }
             if (modo === 'multiplayer') {
-                updateDoc(doc(db, 'jogos', idJogo), jogo);
+                try {
+                    await updateDoc(doc(db, 'jogos', idJogo), jogo);
+                } catch (error) {
+                    console.error('Erro ao atualizar jogo:', error);
+                    alert('Erro ao atualizar o jogo.');
+                }
             } else {
                 exibirJogo();
             }
             document.getElementById('letraInput').value = '';
         }
 
+        // Inicializa a tela inicial
         mostrarTela('inicial');
     </script>
 </body>
