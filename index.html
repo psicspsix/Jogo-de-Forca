@@ -75,6 +75,10 @@
             font-size: 18px;
             color: #ff5555;
         }
+        #exemploFrases {
+            font-size: 16px;
+            margin-top: 10px;
+        }
         #fornecedorView, #adivinhadorView {
             margin-bottom: 20px;
         }
@@ -112,6 +116,7 @@
         </div>
         <pre id="forca"></pre>
         <p id="mensagem"></p>
+        <p id="exemploFrases"></p>
     </div>
 
     <script type="module">
@@ -134,7 +139,7 @@
         let modo = '';
         let papel = '';
         let idJogo = '';
-        let jogo = { palavra: '', letrasAdivinhadas: [], erros: 0, estado: 'em andamento' };
+        let jogo = { palavra: '', letrasAdivinhadas: [], erros: 0, estado: 'em andamento', frases: [] };
         let unsubscribe = null;
 
         const forcaEstagios = [
@@ -216,12 +221,14 @@
 
         function mostrarCriarJogo() {
             console.log('Mostrando criar jogo');
+            document.getElementById('opcoesMultiplayer').style.display = 'none';
             document.getElementById('criarJogo').style.display = 'block';
             document.getElementById('entrarJogo').style.display = 'none';
         }
 
         function mostrarEntrarJogo() {
             console.log('Mostrando entrar jogo');
+            document.getElementById('opcoesMultiplayer').style.display = 'none';
             document.getElementById('entrarJogo').style.display = 'block';
             document.getElementById('criarJogo').style.display = 'none';
         }
@@ -233,17 +240,18 @@
             try {
                 const palavrasCol = collection(db, 'palavras');
                 const snapshot = await getDocs(palavrasCol);
-                const palavras = snapshot.docs.map(doc => doc.data().palavra);
+                const palavras = snapshot.docs.map(doc => doc.data());
                 if (palavras.length === 0) {
                     alert('Nenhuma palavra encontrada no banco de dados. Preencha o banco primeiro.');
                     return;
                 }
                 const palavraAleatoria = palavras[Math.floor(Math.random() * palavras.length)];
                 jogo = {
-                    palavra: palavraAleatoria.toLowerCase(),
+                    palavra: palavraAleatoria.palavra.toLowerCase(),
                     letrasAdivinhadas: [],
                     erros: 0,
-                    estado: 'em andamento'
+                    estado: 'em andamento',
+                    frases: palavraAleatoria.frases || []
                 };
                 mostrarTela('jogo');
                 exibirJogo();
@@ -267,7 +275,8 @@
                 palavra: palavra,
                 letrasAdivinhadas: [],
                 erros: 0,
-                estado: 'em andamento'
+                estado: 'em andamento',
+                frases: [`Você usou "${palavra}" em uma frase!`, `Ótimo, "${palavra}" foi escolhida!`]
             };
             try {
                 const docRef = doc(db, 'jogos', idJogo);
@@ -283,7 +292,7 @@
                 });
             } catch (error) {
                 console.error('Erro ao criar jogo:', error);
-                alert('Erro ao criar o jogo.');
+                alert('Erro ao criar o jogo: ' + error.message);
             }
         }
 
@@ -319,7 +328,7 @@
                 }
             } catch (error) {
                 console.error('Erro ao entrar no jogo:', error);
-                alert('Erro ao entrar no jogo.');
+                alert('Erro ao entrar no jogo: ' + error.message);
             }
         }
 
@@ -339,10 +348,13 @@
             document.getElementById('forca').textContent = forcaEstagios[jogo.erros];
             if (jogo.estado === 'vencido') {
                 document.getElementById('mensagem').textContent = 'Você venceu!';
+                document.getElementById('exemploFrases').textContent = jogo.frases.join(' | ');
             } else if (jogo.estado === 'perdido') {
                 document.getElementById('mensagem').textContent = `Você perdeu! A palavra era: ${jogo.palavra}`;
+                document.getElementById('exemploFrases').textContent = jogo.frases.join(' | ');
             } else {
                 document.getElementById('mensagem').textContent = '';
+                document.getElementById('exemploFrases').textContent = '';
             }
         }
 
@@ -374,7 +386,7 @@
                     await updateDoc(doc(db, 'jogos', idJogo), jogo);
                 } catch (error) {
                     console.error('Erro ao atualizar jogo:', error);
-                    alert('Erro ao atualizar o jogo.');
+                    alert('Erro ao atualizar o jogo: ' + error.message);
                 }
             } else {
                 exibirJogo();
