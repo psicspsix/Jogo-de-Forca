@@ -195,6 +195,23 @@
 =========`
         ];
 
+        // Função para normalizar letras (remove acentos e converte ç para c)
+        function normalizarLetra(letra) {
+            if (!letra) return letra;
+            return letra.toLowerCase()
+                .replace(/[áàâã]/g, 'a')
+                .replace(/[éèê]/g, 'e')
+                .replace(/[íìî]/g, 'i')
+                .replace(/[óòôõ]/g, 'o')
+                .replace(/[úùû]/g, 'u')
+                .replace(/[ç]/g, 'c');
+        }
+
+        // Normaliza uma palavra inteira
+        function normalizarPalavra(palavra) {
+            return palavra.split('').map(normalizarLetra).join('');
+        }
+
         function mostrarTela(tela) {
             console.log(`Mostrando tela: ${tela}`);
             document.getElementById('telaInicial').style.display = 'none';
@@ -268,8 +285,9 @@
         async function criarJogo() {
             console.log('Criando jogo multiplayer');
             const palavra = document.getElementById('palavraInput').value.trim().toLowerCase();
-            if (!palavra.match(/^[a-z]+$/)) {
-                alert('Digite uma palavra válida (apenas letras de a-z).');
+            // Aceita letras a-z, acentos e ç
+            if (!palavra.match(/^[a-záéíóúâêîôûãõç]+$/)) {
+                alert('Digite uma palavra válida (apenas letras, incluindo acentos e ç).');
                 return;
             }
             modo = 'multiplayer';
@@ -378,7 +396,11 @@
             } else {
                 document.getElementById('fornecedorView').style.display = 'none';
                 document.getElementById('adivinhadorView').style.display = 'block';
-                const palavraOculta = jogo.palavra.split('').map(letra => jogo.letrasAdivinhadas.includes(letra) ? letra : '_').join(' ');
+                // Exibe a palavra original, mas usa normalização para verificar letras adivinhadas
+                const palavraOculta = jogo.palavra.split('').map((letra, i) => {
+                    const letraNormalizada = normalizarLetra(letra);
+                    return jogo.letrasAdivinhadas.some(l => normalizarLetra(l) === letraNormalizada) ? letra : '_';
+                }).join(' ');
                 document.getElementById('palavra').textContent = palavraOculta;
             }
             document.getElementById('forca').textContent = forcaEstagios[jogo.erros];
@@ -397,17 +419,22 @@
         async function adivinharLetra() {
             if (papel !== 'adivinhador' || jogo.estado !== 'em andamento') return;
             const letra = document.getElementById('letraInput').value.trim().toLowerCase();
-            if (!letra || letra.length !== 1 || !/[a-z]/.test(letra)) {
-                alert('Digite uma letra válida.');
+            if (!letra || letra.length !== 1 || !/[a-záéíóúâêîôûãõç]/.test(letra)) {
+                alert('Digite uma letra válida (a-z, acentos ou ç).');
                 return;
             }
-            if (jogo.letrasAdivinhadas.includes(letra)) {
+            const letraNormalizada = normalizarLetra(letra);
+            if (jogo.letrasAdivinhadas.some(l => normalizarLetra(l) === letraNormalizada)) {
                 alert('Você já adivinhou essa letra.');
                 return;
             }
             jogo.letrasAdivinhadas.push(letra);
-            if (jogo.palavra.includes(letra)) {
-                const letrasFaltando = jogo.palavra.split('').filter(l => !jogo.letrasAdivinhadas.includes(l));
+            const palavraNormalizada = normalizarPalavra(jogo.palavra);
+            if (palavraNormalizada.includes(letraNormalizada)) {
+                const letrasFaltando = palavraNormalizada.split('').filter((l, i) => {
+                    const letraOriginalNormalizada = normalizarLetra(jogo.palavra[i]);
+                    return !jogo.letrasAdivinhadas.some(la => normalizarLetra(la) === letraOriginalNormalizada);
+                });
                 if (letrasFaltando.length === 0) {
                     jogo.estado = 'vencido';
                 }
