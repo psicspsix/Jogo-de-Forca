@@ -253,7 +253,9 @@
                     letrasAdivinhadas: [],
                     erros: 0,
                     estado: 'em andamento',
-                    frases: palavraAleatoria.frases || []
+                    frases: palavraAleatoria.flexoes && palavraAleatoria.flexoes.length > 0
+                        ? [`Flexões: ${palavraAleatoria.flexoes.join(', ')}`]
+                        : [`Frequência: ${palavraAleatoria.frequencia}`]
                 };
                 mostrarTela('jogo');
                 exibirJogo();
@@ -288,7 +290,7 @@
                 exibirJogo();
                 unsubscribe = onValue(jogoRef, (snapshot) => {
                     if (snapshot.exists()) {
-                        jogo = snapshot.val();
+                        jogo = validateJogo(snapshot.val());
                         exibirJogo();
                     }
                 });
@@ -300,6 +302,26 @@
 
         function generateUniqueId() {
             return Math.random().toString(36).substr(2, 9);
+        }
+
+        function validateJogo(data) {
+            if (!data || typeof data !== 'object') {
+                console.error('Dados do jogo inválidos:', data);
+                return {
+                    palavra: '',
+                    letrasAdivinhadas: [],
+                    erros: 0,
+                    estado: 'em andamento',
+                    frases: ['Jogo inválido']
+                };
+            }
+            return {
+                palavra: data.palavra || '',
+                letrasAdivinhadas: Array.isArray(data.letrasAdivinhadas) ? data.letrasAdivinhadas : [],
+                erros: Number.isInteger(data.erros) ? data.erros : 0,
+                estado: data.estado || 'em andamento',
+                frases: Array.isArray(data.frases) ? data.frases : [`Jogo com ID ${idJogo}`]
+            };
         }
 
         async function entrarJogo() {
@@ -316,13 +338,21 @@
                 const jogoRef = ref(db, `jogos/${idJogo}`);
                 const snapshot = await get(jogoRef);
                 if (snapshot.exists()) {
-                    jogo = snapshot.val();
+                    jogo = validateJogo(snapshot.val());
+                    console.log('Jogo carregado:', jogo);
+                    if (!jogo.palavra) {
+                        throw new Error('Palavra do jogo não encontrada.');
+                    }
                     mostrarTela('jogo');
                     exibirJogo();
                     unsubscribe = onValue(jogoRef, (snapshot) => {
                         if (snapshot.exists()) {
-                            jogo = snapshot.val();
+                            jogo = validateJogo(snapshot.val());
                             exibirJogo();
+                        } else {
+                            console.log('Jogo não existe mais.');
+                            alert('O jogo foi removido ou não existe.');
+                            mostrarTela('inicial');
                         }
                     });
                 } else {
@@ -336,6 +366,10 @@
 
         function exibirJogo() {
             console.log('Exibindo estado do jogo:', jogo);
+            if (!jogo || !jogo.palavra) {
+                document.getElementById('mensagem').textContent = 'Erro: Jogo inválido.';
+                return;
+            }
             if (papel === 'fornecedor') {
                 document.getElementById('fornecedorView').style.display = 'block';
                 document.getElementById('adivinhadorView').style.display = 'none';
@@ -431,6 +465,21 @@
         document.getElementById('adivinharBtn').addEventListener('click', () => {
             console.log('Botão Adivinhar clicado');
             adivinharLetra();
+        });
+
+        // Adiciona suporte à tecla Enter
+        document.getElementById('letraInput').addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                console.log('Tecla Enter pressionada no campo letraInput');
+                adivinharLetra();
+            }
+        });
+
+        document.getElementById('palavraInput').addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                console.log('Tecla Enter pressionada no campo palavraInput');
+                criarJogo();
+            }
         });
 
         // Inicializa a tela inicial
