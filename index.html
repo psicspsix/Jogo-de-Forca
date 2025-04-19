@@ -410,10 +410,18 @@
             }
             document.getElementById('forca').textContent = forcaEstagios[jogo.erros];
             if (jogo.estado === 'vencido') {
-                document.getElementById('mensagem').textContent = 'Você venceu!';
+                if (papel === 'adivinhador') {
+                    document.getElementById('mensagem').textContent = 'Você venceu!';
+                } else if (papel === 'fornecedor') {
+                    document.getElementById('mensagem').textContent = 'Você perdeu!';
+                }
                 document.getElementById('exemploFrases').textContent = jogo.frases.join(' | ');
             } else if (jogo.estado === 'perdido') {
-                document.getElementById('mensagem').textContent = `Você perdeu! A palavra era: ${jogo.palavra}`;
+                if (papel === 'adivinhador') {
+                    document.getElementById('mensagem').textContent = `Você perdeu! A palavra era: ${jogo.palavra}`;
+                } else if (papel === 'fornecedor') {
+                    document.getElementById('mensagem').textContent = 'Você venceu!';
+                }
                 document.getElementById('exemploFrases').textContent = jogo.frases.join(' | ');
             } else {
                 document.getElementById('mensagem').textContent = '';
