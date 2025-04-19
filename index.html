@@ -121,11 +121,12 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDYju4ux-XrvEXaP2aSXbY2eJd_Qj4AKow",
             authDomain: "jogo-de-forca-b905b.firebaseapp.com",
+            databaseURL: "https://jogo-de-forca-b905b-default-rtdb.firebaseio.com",
             projectId: "jogo-de-forca-b905b",
             storageBucket: "jogo-de-forca-b905b.firebasestorage.app",
             messagingSenderId: "18562245618",
@@ -134,7 +135,7 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        const db = getDatabase(app);
 
         let modo = '';
         let papel = '';
@@ -238,14 +239,15 @@
             modo = 'solo';
             papel = 'adivinhador';
             try {
-                const palavrasCol = collection(db, 'palavras');
-                const snapshot = await getDocs(palavrasCol);
-                const palavras = snapshot.docs.map(doc => doc.data());
-                if (palavras.length === 0) {
+                const palavrasRef = ref(db, 'palavras');
+                const snapshot = await get(palavrasRef);
+                const palavras = snapshot.val();
+                if (!palavras || Object.keys(palavras).length === 0) {
                     alert('Nenhuma palavra encontrada no banco de dados. Preencha o banco primeiro.');
                     return;
                 }
-                const palavraAleatoria = palavras[Math.floor(Math.random() * palavras.length)];
+                const palavrasArray = Object.values(palavras);
+                const palavraAleatoria = palavrasArray[Math.floor(Math.random() * palavrasArray.length)];
                 jogo = {
                     palavra: palavraAleatoria.palavra.toLowerCase(),
                     letrasAdivinhadas: [],
@@ -279,14 +281,14 @@
                 frases: [`Você usou "${palavra}" em uma frase!`, `Ótimo, "${palavra}" foi escolhida!`]
             };
             try {
-                const docRef = doc(db, 'jogos', idJogo);
-                await setDoc(docRef, jogo);
+                const jogoRef = ref(db, `jogos/${idJogo}`);
+                await set(jogoRef, jogo);
                 alert(`Jogo criado! Compartilhe este ID com seu amigo: ${idJogo}`);
                 mostrarTela('jogo');
                 exibirJogo();
-                unsubscribe = onSnapshot(docRef, (doc) => {
-                    if (doc.exists()) {
-                        jogo = doc.data();
+                unsubscribe = onValue(jogoRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        jogo = snapshot.val();
                         exibirJogo();
                     }
                 });
@@ -311,15 +313,15 @@
             papel = 'adivinhador';
             idJogo = id;
             try {
-                const docRef = doc(db, 'jogos', idJogo);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    jogo = docSnap.data();
+                const jogoRef = ref(db, `jogos/${idJogo}`);
+                const snapshot = await get(jogoRef);
+                if (snapshot.exists()) {
+                    jogo = snapshot.val();
                     mostrarTela('jogo');
                     exibirJogo();
-                    unsubscribe = onSnapshot(docRef, (doc) => {
-                        if (doc.exists()) {
-                            jogo = doc.data();
+                    unsubscribe = onValue(jogoRef, (snapshot) => {
+                        if (snapshot.exists()) {
+                            jogo = snapshot.val();
                             exibirJogo();
                         }
                     });
@@ -383,7 +385,8 @@
             }
             if (modo === 'multiplayer') {
                 try {
-                    await updateDoc(doc(db, 'jogos', idJogo), jogo);
+                    const jogoRef = ref(db, `jogos/${idJogo}`);
+                    await update(jogoRef, jogo);
                 } catch (error) {
                     console.error('Erro ao atualizar jogo:', error);
                     alert('Erro ao atualizar o jogo: ' + error.message);
