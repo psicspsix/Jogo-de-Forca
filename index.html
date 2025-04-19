@@ -227,6 +227,10 @@
                 }
             } else if (tela === 'jogo') {
                 document.getElementById('telaJogo').style.display = 'block';
+                // Definir foco no letraInput para o adivinhador
+                if (papel === 'adivinhador') {
+                    document.getElementById('letraInput').focus();
+                }
             }
         }
 
@@ -242,6 +246,7 @@
             document.getElementById('opcoesMultiplayer').style.display = 'none';
             document.getElementById('criarJogo').style.display = 'block';
             document.getElementById('entrarJogo').style.display = 'none';
+            document.getElementById('palavraInput').focus();
         }
 
         function mostrarEntrarJogo() {
@@ -249,6 +254,7 @@
             document.getElementById('opcoesMultiplayer').style.display = 'none';
             document.getElementById('entrarJogo').style.display = 'block';
             document.getElementById('criarJogo').style.display = 'none';
+            document.getElementById('idJogoInput').focus();
         }
 
         async function iniciarJogoSolo() {
@@ -396,7 +402,6 @@
             } else {
                 document.getElementById('fornecedorView').style.display = 'none';
                 document.getElementById('adivinhadorView').style.display = 'block';
-                // Exibe a palavra original, mas usa normalização para verificar letras adivinhadas
                 const palavraOculta = jogo.palavra.split('').map((letra, i) => {
                     const letraNormalizada = normalizarLetra(letra);
                     return jogo.letrasAdivinhadas.some(l => normalizarLetra(l) === letraNormalizada) ? letra : '_';
@@ -456,6 +461,7 @@
                 exibirJogo();
             }
             document.getElementById('letraInput').value = '';
+            document.getElementById('letraInput').focus();
         }
 
         // Adiciona eventos aos botões
@@ -494,7 +500,7 @@
             adivinharLetra();
         });
 
-        // Adiciona suporte à tecla Enter
+        // Adiciona suporte à tecla Enter em todos os campos
         document.getElementById('letraInput').addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
                 console.log('Tecla Enter pressionada no campo letraInput');
@@ -506,6 +512,13 @@
             if (event.key === 'Enter') {
                 console.log('Tecla Enter pressionada no campo palavraInput');
                 criarJogo();
+            }
+        });
+
+        document.getElementById('idJogoInput').addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                console.log('Tecla Enter pressionada no campo idJogoInput');
+                entrarJogo();
             }
         });
 
