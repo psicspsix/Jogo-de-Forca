@@ -98,12 +98,41 @@
             height: 60px;
             overflow-y: auto;
         }
-        #forca {
-            font-family: monospace;
-            white-space: pre;
-            font-size: 24px;
-            margin: 20px 0;
+        #forcaContainer {
+            position: relative;
+            width: 300px;
+            height: 600px;
+            margin: 20px auto;
+            overflow: hidden;
+            border: 2px solid #ffffff;
+            background: rgba(0, 0, 0, 0.5);
         }
+        #forcaImagem {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: clip-path 0.3s ease;
+        }
+        #erroImagem {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff0000;
+            font-size: 16px;
+            text-align: center;
+            display: none;
+        }
+        #forcaImagem.erro-0 { clip-path: inset(100% 0 0 0); }
+        #forcaImagem.erro-1 { clip-path: inset(0 0 80% 0); }
+        #forcaImagem.erro-2 { clip-path: inset(0 0 60% 0); }
+        #forcaImagem.erro-3 { clip-path: inset(0 0 50% 0); }
+        #forcaImagem.erro-4 { clip-path: inset(0 0 40% 0); }
+        #forcaImagem.erro-5 { clip-path: inset(0 0 20% 0); }
+        #forcaImagem.erro-6 { clip-path: inset(0 0 0 0); }
         #palavra {
             font-size: 24px;
             margin: 20px 0;
@@ -230,7 +259,10 @@
             <input type="text" id="letraInput" maxlength="1" placeholder="Digite uma letra">
             <button id="adivinharBtn">Enviar</button>
         </div>
-        <pre id="forca"></pre>
+        <div id="forcaContainer">
+            <img id="forcaImagem" src="https://raw.githubusercontent.com/psicspsix/Jogo-de-Forca/main/NovaForca.jpg" alt="Imagem da forca" onload="console.log('Imagem carregada:', this.src); document.getElementById('erroImagem').style.display = 'none';" onerror="console.error('Erro ao carregar imagem:', this.src); document.getElementById('erroImagem').style.display = 'block';">
+            <div id="erroImagem">Erro: Não foi possível carregar a imagem.</div>
+        </div>
         <p id="mensagem"></p>
         <p id="exemploFrases"></p>
         <p id="placar"></p>
@@ -240,7 +272,7 @@
     <button id="closeChatBtn" style="display: none;">Fechar Chat</button>
     <div id="chatContainer">
         <div id="chatMessages"></div>
-        <div id="chatinInputContainer">
+        <div id="chatInputContainer">
             <textarea id="chatInput" placeholder="Digite sua mensagem..."></textarea>
         </div>
     </div>
@@ -283,16 +315,6 @@
         let unsubscribeJogo = null;
         let unsubscribeChat = null;
         let chatAberto = false;
-
-        const forcaEstagios = [
-            ` +---+\n |   |\n     |\n     |\n     |\n     |\n=========`,
-            ` +---+\n |   |\n O   |\n     |\n     |\n     |\n=========`,
-            ` +---+\n |   |\n O   |\n |   |\n     |\n     |\n=========`,
-            ` +---+\n |   |\n O   |\n/|   |\n     |\n     |\n=========`,
-            ` +---+\n |   |\n O   |\n/|\\  |\n     |\n     |\n=========`,
-            ` +---+\n |   |\n O   |\n/|\\  |\n/    |\n     |\n=========`,
-            ` +---+\n |   |\n O   |\n/|\\  |\n/ \\  |\n     |\n=========`
-        ];
 
         function normalizarLetra(letra) {
             if (!letra) return letra;
@@ -687,7 +709,9 @@
                 }).join(' ');
                 document.getElementById('palavra').textContent = palavraOculta;
             }
-            document.getElementById('forca').textContent = forcaEstagios[jogo.erros];
+            const imagemForca = document.getElementById('forcaImagem');
+            imagemForca.className = `erro-${jogo.erros}`;
+            console.log(`Imagem atualizada: class=erro-${jogo.erros}, src=${imagemForca.src}`);
             const botoesFimJogo = document.getElementById('botoesFimJogo');
             const botoesHTML = `
                 <button onclick="jogarNovamente()">Jogar Novamente</button>
@@ -877,6 +901,11 @@
         });
 
         window.jogarNovamente = jogarNovamente;
+
+        // Log para verificar carregamento inicial da imagem
+        const imagemForca = document.getElementById('forcaImagem');
+        imagemForca.onload = () => console.log('Imagem carregada com sucesso:', imagemForca.src);
+        imagemForca.onerror = () => console.error('Erro ao carregar imagem:', imagemForca.src);
 
         mostrarTela('inicial');
     </script>
